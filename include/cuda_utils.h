@@ -2,15 +2,18 @@
 #define CUDA_UTILS_H
 
 #include <cuda_runtime.h>
+#include <stdexcept>
+#include <iostream> // Añadido para std::cerr
 
-#define CHECK_CUDA(call)                                                                                \
-    {                                                                                                   \
-        cudaError_t err = (call);                                                                       \
-        if (err != cudaSuccess)                                                                         \
-        {                                                                                               \
-            fprintf(stderr, "CUDA error at %s:%d - %s\n", __FILE__, __LINE__, cudaGetErrorString(err)); \
-            exit(1);                                                                                    \
-        }                                                                                               \
+#define CHECK_CUDA(call)                                                  \
+    {                                                                     \
+        cudaError_t err = (call);                                         \
+        if (err != cudaSuccess)                                           \
+        {                                                                 \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__; \
+            std::cerr << " - " << cudaGetErrorString(err) << std::endl;   \
+            throw std::runtime_error("CUDA error");                       \
+        }                                                                 \
     }
 
 void *cuda_alloc(size_t size);

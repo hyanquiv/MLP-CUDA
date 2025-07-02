@@ -1,4 +1,6 @@
 #include "cuda_utils.h"
+#include <cstdio>  // Añadir para fprintf y stderr
+#include <cstdlib> // Añadir para exit
 
 void *cuda_alloc(size_t size)
 {
