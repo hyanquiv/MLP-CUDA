@@ -83,7 +83,74 @@ __global__ void backward_delta_kernel(const float *weights, const float *delta_n
 }
 
 MLP::MLP(int input_size, int hidden_size, int output_size)
-    : MLP({input_size, hidden_size, output_size}) {}
+{
+    impl = new Impl;
+    impl->num_layers = 2; // Capa oculta + capa de salida
+    impl->layer_sizes = {input_size, hidden_size, output_size};
+
+    // Verificar que tenemos al menos capa de entrada y salida
+    if (impl->num_layers < 1)
+    {
+        throw std::invalid_argument("Debe haber al menos una capa de entrada y una de salida");
+    }
+
+    // Inicializar generador de números aleatorios
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    // Asignar memoria para activaciones
+    impl->activations.resize(impl->num_layers + 1);
+    for (int i = 0; i <= impl->num_layers; i++)
+    {
+        impl->activations[i] = static_cast<float *>(cuda_alloc(impl->layer_sizes[i] * sizeof(float)));
+    }
+
+    // Asignar memoria para pesos, bias y gradientes
+    impl->weights.resize(impl->num_layers);
+    impl->biases.resize(impl->num_layers);
+    impl->d_weights.resize(impl->num_layers);
+    impl->d_biases.resize(impl->num_layers);
+    impl->deltas.resize(impl->num_layers);
+
+    const float weight_scale = 0.1f; // Escala para inicialización de pesos
+    const int blockSize = 256;
+
+    for (int i = 0; i < impl->num_layers; i++)
+    {
+        int in_size = impl->layer_sizes[i];
+        int out_size = impl->layer_sizes[i + 1];
+
+        // Capa de pesos
+        size_t weight_size = in_size * out_size * sizeof(float);
+        impl->weights[i] = static_cast<float *>(cuda_alloc(weight_size));
+        impl->d_weights[i] = static_cast<float *>(cuda_alloc(weight_size));
+
+        // Capa de bias
+        impl->biases[i] = static_cast<float *>(cuda_alloc(out_size * sizeof(float)));
+        impl->d_biases[i] = static_cast<float *>(cuda_alloc(out_size * sizeof(float)));
+
+        // Deltas (solo para capas ocultas)
+        if (i < impl->num_layers - 1)
+        {
+            impl->deltas[i] = static_cast<float *>(cuda_alloc(out_size * sizeof(float)));
+        }
+        else
+        {
+            impl->deltas[i] = nullptr; // Capa de salida no necesita delta
+        }
+
+        // Inicializar pesos
+        int numBlocks = (in_size * out_size + blockSize - 1) / blockSize;
+        init_weights_kernel<<<numBlocks, blockSize>>>(impl->weights[i], in_size * out_size, weight_scale);
+        cudaDeviceSynchronize();
+
+        // Inicializar bias a cero
+        CHECK_CUDA(cudaMemset(impl->biases[i], 0, out_size * sizeof(float)));
+
+        // Inicializar gradientes a cero
+        CHECK_CUDA(cudaMemset(impl->d_weights[i], 0, weight_size));
+        CHECK_CUDA(cudaMemset(impl->d_biases[i], 0, out_size * sizeof(float)));
+    }
+}
 
 MLP::MLP(const std::vector<int> &layer_sizes)
 {
