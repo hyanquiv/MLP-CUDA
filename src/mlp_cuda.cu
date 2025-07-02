@@ -6,6 +6,8 @@
 #include <curand_kernel.h>
 #include <iostream>
 #include <cmath>
+#include <stdexcept>
+#include <ctime>
 
 // Kernel para inicialización de pesos
 __global__ void init_weights_kernel(float *weights, int size, float scale)
@@ -13,8 +15,10 @@ __global__ void init_weights_kernel(float *weights, int size, float scale)
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < size)
     {
-        // Generador de números aleatorios simple (para demostración)
-        float rnd = static_cast<float>(curand_uniform((curandState *)0)) * 2.0f - 1.0f;
+        // Generador de números aleatorios simple
+        unsigned int seed = idx * blockIdx.x + threadIdx.x;
+        float rnd = static_cast<float>((seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+        rnd = rnd * 2.0f - 1.0f;
         weights[idx] = rnd * scale;
     }
 }
@@ -94,7 +98,7 @@ MLP::MLP(const std::vector<int> &layer_sizes)
     }
 
     // Inicializar generador de números aleatorios
-    srand(time(0));
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
 
     // Asignar memoria para activaciones
     impl->activations.resize(impl->num_layers + 1);
@@ -140,6 +144,7 @@ MLP::MLP(const std::vector<int> &layer_sizes)
         // Inicializar pesos
         int numBlocks = (in_size * out_size + blockSize - 1) / blockSize;
         init_weights_kernel<<<numBlocks, blockSize>>>(impl->weights[i], in_size * out_size, weight_scale);
+        cudaDeviceSynchronize();
 
         // Inicializar bias a cero
         CHECK_CUDA(cudaMemset(impl->biases[i], 0, out_size * sizeof(float)));
@@ -155,16 +160,21 @@ MLP::~MLP()
     // Liberar memoria de activaciones
     for (auto &ptr : impl->activations)
     {
-        cuda_free(ptr);
+        if (ptr)
+            cuda_free(ptr);
     }
 
     // Liberar pesos y bias
     for (int i = 0; i < impl->num_layers; i++)
     {
-        cuda_free(impl->weights[i]);
-        cuda_free(impl->biases[i]);
-        cuda_free(impl->d_weights[i]);
-        cuda_free(impl->d_biases[i]);
+        if (impl->weights[i])
+            cuda_free(impl->weights[i]);
+        if (impl->biases[i])
+            cuda_free(impl->biases[i]);
+        if (impl->d_weights[i])
+            cuda_free(impl->d_weights[i]);
+        if (impl->d_biases[i])
+            cuda_free(impl->d_biases[i]);
         if (impl->deltas[i])
             cuda_free(impl->deltas[i]);
     }
@@ -175,7 +185,9 @@ MLP::~MLP()
 void MLP::forward(const float *input)
 {
     // Copiar entrada al dispositivo
-    copy_to_device(impl->activations[0], input, impl->layer_sizes[0] * sizeof(float));
+    CHECK_CUDA(cudaMemcpy(impl->activations[0], input,
+                          impl->layer_sizes[0] * sizeof(float),
+                          cudaMemcpyHostToDevice));
 
     const int blockSize = 256;
 
@@ -194,6 +206,7 @@ void MLP::forward(const float *input)
             impl->activations[i + 1], // Salida (sin activar)
             in_size,
             out_size);
+        cudaDeviceSynchronize();
 
         // Aplicar función de activación (excepto en la capa de salida)
         if (i < impl->num_layers - 1)
@@ -212,6 +225,7 @@ void MLP::forward(const float *input)
                 impl->activations[i + 1],
                 out_size);
         }
+        cudaDeviceSynchronize();
     }
 }
 
@@ -223,7 +237,8 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
 
     // Copiar salida predicha al host
     float *h_output = new float[output_size];
-    copy_to_host(h_output, impl->activations[impl->num_layers], output_size * sizeof(float));
+    CHECK_CUDA(cudaMemcpy(h_output, impl->activations[impl->num_layers],
+                          output_size * sizeof(float), cudaMemcpyDeviceToHost));
 
     // Calcular gradiente en el host (para simplificar)
     float *h_d_output = new float[output_size];
@@ -233,7 +248,8 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
     }
 
     // Copiar gradiente al dispositivo
-    copy_to_device(d_output, h_d_output, output_size * sizeof(float));
+    CHECK_CUDA(cudaMemcpy(d_output, h_d_output,
+                          output_size * sizeof(float), cudaMemcpyHostToDevice));
 
     // Configuración de kernels
     dim3 block(16, 16);
@@ -252,17 +268,20 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
             impl->d_weights[i],
             in_size,
             out_size);
+        cudaDeviceSynchronize();
 
         // Calcular gradientes de bias
         if (i == impl->num_layers - 1)
         {
             // Capa de salida: gradiente = d_output
-            copy_to_device(impl->d_biases[i], d_output, out_size * sizeof(float));
+            CHECK_CUDA(cudaMemcpy(impl->d_biases[i], d_output,
+                                  out_size * sizeof(float), cudaMemcpyDeviceToDevice));
         }
         else
         {
             // Capas ocultas: copiar deltas a d_biases
-            copy_to_device(impl->d_biases[i], impl->deltas[i], out_size * sizeof(float));
+            CHECK_CUDA(cudaMemcpy(impl->d_biases[i], impl->deltas[i],
+                                  out_size * sizeof(float), cudaMemcpyDeviceToDevice));
         }
 
         // Calcular delta para la capa anterior (excepto para la primera capa)
@@ -276,6 +295,7 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
                 impl->deltas[i - 1],  // Delta para la capa anterior
                 in_size,
                 out_size);
+            cudaDeviceSynchronize();
         }
     }
 
@@ -291,6 +311,7 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
             impl->d_weights[i],
             weight_size,
             learning_rate);
+        cudaDeviceSynchronize();
 
         blocks = (bias_size + 255) / 256;
         update_weights_kernel<<<blocks, 256>>>(
@@ -298,6 +319,7 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
             impl->d_biases[i],
             bias_size,
             learning_rate);
+        cudaDeviceSynchronize();
     }
 
     // Liberar recursos
@@ -309,15 +331,15 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
 void MLP::update_weights(float learning_rate)
 {
     // La actualización ya se hace en backward en esta implementación
-    // Se mantiene por compatibilidad con la interfaz
 }
 
 const float *MLP::get_output() const
 {
     // Copiar salida al host
-    float *h_output = new float[impl->layer_sizes[impl->num_layers]];
-    copy_to_host(h_output, impl->activations[impl->num_layers],
-                 impl->layer_sizes[impl->num_layers] * sizeof(float));
+    int output_size = impl->layer_sizes[impl->num_layers];
+    float *h_output = new float[output_size];
+    CHECK_CUDA(cudaMemcpy(h_output, impl->activations[impl->num_layers],
+                          output_size * sizeof(float), cudaMemcpyDeviceToHost));
     return h_output;
 }
 
