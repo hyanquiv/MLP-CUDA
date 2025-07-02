@@ -2,6 +2,7 @@
 #include "mlp_cuda.h"
 #include "constants.h"
 #include "cuda_utils.h"
+#include "train.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
