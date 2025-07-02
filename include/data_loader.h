@@ -14,5 +14,6 @@ struct MNISTData {
 MNISTData load_mnist(const std::string& image_path, const std::string& label_path);
 void normalize_data(std::vector<float>& images);
 void free_mnist(MNISTData& dataset);
+void shuffle_data(MNISTData &data);
 
 #endif

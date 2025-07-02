@@ -100,6 +100,8 @@ void train_model(MLP &model, const MNISTData &train_data, const MNISTData &test_
     const int output_size = OUTPUT_SIZE;
     const int num_batches = (num_train + BATCH_SIZE - 1) / BATCH_SIZE;
 
+    float current_learning_rate = LEARNING_RATE;
+
     // Variables para seguimiento de progreso
     float best_test_accuracy = 0.0f;
     std::vector<float> epoch_losses(EPOCHS, 0.0f);
@@ -108,7 +110,7 @@ void train_model(MLP &model, const MNISTData &train_data, const MNISTData &test_
     std::cout << "Configuración:" << std::endl;
     std::cout << " - Épocas: " << EPOCHS << std::endl;
     std::cout << " - Tamaño de lote: " << BATCH_SIZE << std::endl;
-    std::cout << " - Tasa de aprendizaje: " << LEARNING_RATE << std::endl;
+    std::cout << " - Tasa de aprendizaje: " << current_learning_rate << std::endl;
     std::cout << " - Muestras de entrenamiento: " << num_train << std::endl;
     std::cout << " - Muestras de prueba: " << num_test << std::endl;
 
@@ -160,14 +162,14 @@ void train_model(MLP &model, const MNISTData &train_data, const MNISTData &test_
                 }
 
                 // Pase hacia atrás
-                model.backward(image, &label, LEARNING_RATE);
+                model.backward(image, &label, current_learning_rate);
 
                 // Liberar memoria de salida
                 delete[] output;
             }
 
             // Actualizar pesos (si no se actualizan automáticamente en backward)
-            model.update_weights(LEARNING_RATE);
+            model.update_weights(current_learning_rate);
 
             // Calcular métricas del lote
             batch_loss /= current_batch_size;
@@ -210,8 +212,8 @@ void train_model(MLP &model, const MNISTData &train_data, const MNISTData &test_
         // Reducción de tasa de aprendizaje
         if (epoch > 0 && epoch_losses[epoch] > epoch_losses[epoch - 1] * 0.95)
         {
-            LEARNING_RATE *= 0.9;
-            std::cout << "  Reduciendo tasa de aprendizaje a: " << LEARNING_RATE << std::endl;
+            current_learning_rate *= 0.9;
+            std::cout << "  Reduciendo tasa de aprendizaje a: " << current_learning_rate << std::endl;
         }
     }
 

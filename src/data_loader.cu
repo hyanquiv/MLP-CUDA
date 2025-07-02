@@ -112,3 +112,39 @@ void free_mnist(MNISTData &dataset)
     dataset.num_samples = 0;
     dataset.image_size = 0;
 }
+
+void shuffle_data(MNISTData &data)
+{
+    int n = data.num_samples;
+    int image_size = data.image_size;
+    std::vector<int> indices(n);
+
+    // Crear índices secuenciales
+    for (int i = 0; i < n; i++)
+    {
+        indices[i] = i;
+    }
+
+    // Barajar los índices
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(indices.begin(), indices.end(), g);
+
+    // Crear copias temporales
+    std::vector<float> shuffled_images(n * image_size);
+    std::vector<int> shuffled_labels(n);
+
+    // Reordenar según índices barajados
+    for (int i = 0; i < n; i++)
+    {
+        int orig_idx = indices[i];
+        std::copy(data.images.begin() + orig_idx * image_size,
+                  data.images.begin() + (orig_idx + 1) * image_size,
+                  shuffled_images.begin() + i * image_size);
+        shuffled_labels[i] = data.labels[orig_idx];
+    }
+
+    // Reemplazar con datos barajados
+    data.images = std::move(shuffled_images);
+    data.labels = std::move(shuffled_labels);
+}
