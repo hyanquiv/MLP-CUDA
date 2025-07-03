@@ -17,12 +17,12 @@ int main()
 
     // 1. Cargar datos
     std::cout << "\nCargando conjunto de entrenamiento..." << std::endl;
-    MNISTData train_data = load_mnist("dataset/train-images-idx3-ubyte",
-                                      "dataset/train-labels-idx1-ubyte");
+    MNISTData train_data = load_mnist("datas/train-images-idx3-ubyte",
+                                      "data/train-labels-idx1-ubyte");
 
     std::cout << "Cargando conjunto de prueba..." << std::endl;
-    MNISTData test_data = load_mnist("dataset/t10k-images-idx3-ubyte",
-                                     "dataset/t10k-labels-idx1-ubyte");
+    MNISTData test_data = load_mnist("data/t10k-images-idx3-ubyte",
+                                     "data/t10k-labels-idx1-ubyte");
 
     // Mostrar estadísticas de los datos
     std::cout << "\nDatos cargados exitosamente:" << std::endl;
