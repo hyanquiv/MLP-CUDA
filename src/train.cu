@@ -46,7 +46,7 @@ void shuffle_data(MNISTData &data)
 }
 
 // Función para evaluar el modelo
-float evaluate(MLP &model, const MNISTData &data, int max_samples = -1)
+float evaluate(MLP &model, MNISTData &data, int max_samples = -1)
 {
     int n = data.num_samples;
     if (max_samples > 0 && max_samples < n)
@@ -92,7 +92,7 @@ float cross_entropy_loss(const float *output, int target, int num_classes)
 }
 
 // Entrenamiento principal
-void train_model(MLP &model, const MNISTData &train_data, const MNISTData &test_data)
+void train_model(MLP &model, MNISTData &train_data, const MNISTData &test_data)
 {
     const int num_train = train_data.num_samples;
     const int num_test = test_data.num_samples;
