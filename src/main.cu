@@ -17,7 +17,7 @@ int main()
 
     // 1. Cargar datos
     std::cout << "\nCargando conjunto de entrenamiento..." << std::endl;
-    MNISTData train_data = load_mnist("datas/train-images-idx3-ubyte",
+    MNISTData train_data = load_mnist("data/train-images-idx3-ubyte",
                                       "data/train-labels-idx1-ubyte");
 
     std::cout << "Cargando conjunto de prueba..." << std::endl;
