@@ -46,7 +46,7 @@ void shuffle_data(MNISTData &data)
 }
 
 // Función para evaluar el modelo
-float evaluate(MLP &model, MNISTData &data, int max_samples = -1)
+float evaluate(MLP &model, const MNISTData &data, int max_samples = -1)
 {
     int n = data.num_samples;
     if (max_samples > 0 && max_samples < n)
