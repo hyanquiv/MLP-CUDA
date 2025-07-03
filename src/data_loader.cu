@@ -2,6 +2,9 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
 
 int reverse_int(int i)
 {
@@ -117,34 +120,29 @@ void shuffle_data(MNISTData &data)
 {
     int n = data.num_samples;
     int image_size = data.image_size;
-    std::vector<int> indices(n);
 
-    // Crear índices secuenciales
-    for (int i = 0; i < n; i++)
+    // Inicializar semilla aleatoria
+    static bool seeded = false;
+    if (!seeded)
     {
-        indices[i] = i;
+        std::srand(static_cast<unsigned>(std::time(nullptr)));
+        seeded = true;
     }
 
-    // Barajar los índices
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(indices.begin(), indices.end(), g);
-
-    // Crear copias temporales
-    std::vector<float> shuffled_images(n * image_size);
-    std::vector<int> shuffled_labels(n);
-
-    // Reordenar según índices barajados
-    for (int i = 0; i < n; i++)
+    // Barajar usando el algoritmo Fisher-Yates
+    for (int i = n - 1; i > 0; i--)
     {
-        int orig_idx = indices[i];
-        std::copy(data.images.begin() + orig_idx * image_size,
-                  data.images.begin() + (orig_idx + 1) * image_size,
-                  shuffled_images.begin() + i * image_size);
-        shuffled_labels[i] = data.labels[orig_idx];
-    }
+        // Generar índice aleatorio entre 0 e i
+        int j = std::rand() % (i + 1);
 
-    // Reemplazar con datos barajados
-    data.images = std::move(shuffled_images);
-    data.labels = std::move(shuffled_labels);
+        // Intercambiar imágenes
+        for (int k = 0; k < image_size; k++)
+        {
+            std::swap(data.images[i * image_size + k],
+                      data.images[j * image_size + k]);
+        }
+
+        // Intercambiar etiquetas
+        std::swap(data.labels[i], data.labels[j]);
+    }
 }
