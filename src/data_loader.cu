@@ -40,22 +40,31 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
     dataset.image_size = embedding_dim;
     dataset.num_samples = dataset.images.size() / embedding_dim;
 
-    // Leer archivo de etiquetas
+    // Leer archivo de etiquetas (CSV con encabezado)
     std::ifstream label_file(labels_csv);
     if (!label_file.is_open())
     {
         throw std::runtime_error("No se pudo abrir el archivo de etiquetas: " + labels_csv);
     }
 
-    int label;
-    while (label_file >> label)
+    std::string label_line;
+
+    // Saltar encabezado
+    std::getline(label_file, label_line);
+
+    // Leer etiquetas
+    while (std::getline(label_file, label_line))
     {
-        dataset.labels.push_back(label);
+        if (!label_line.empty())
+        {
+            dataset.labels.push_back(std::stoi(label_line));
+        }
     }
 
     if (dataset.labels.size() != dataset.num_samples)
     {
-        throw std::runtime_error("Cantidad de etiquetas no coincide con cantidad de muestras");
+        throw std::runtime_error("Cantidad de etiquetas (" + std::to_string(dataset.labels.size()) +
+                                 ") no coincide con cantidad de muestras (" + std::to_string(dataset.num_samples) + ")");
     }
 
     return dataset;
@@ -63,8 +72,7 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 
 void normalize_data(std::vector<float> &images)
 {
-    // Asumimos que los embeddings ya están en escala normalizada
-    // Si deseas escalar manualmente, puedes hacerlo aquí
+    // Asumimos que los embeddings ya están normalizados.
 }
 
 void free_mnist(MNISTData &dataset)
