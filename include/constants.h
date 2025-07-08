@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-const int INPUT_SIZE = 784;
+const int INPUT_SIZE = 768;
 const int HIDDEN_SIZE = 256;
 const int OUTPUT_SIZE = 10;
 const int BATCH_SIZE = 64;
