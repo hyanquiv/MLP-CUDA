@@ -23,6 +23,9 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 
     while (std::getline(feature_file, line))
     {
+        if (line.empty())
+            continue; // ← Ignorar líneas vacías
+
         std::stringstream ss(line);
         std::string value;
         int count = 0;
@@ -63,7 +66,7 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 
     if (dataset.labels.size() != dataset.num_samples)
     {
-        throw std::runtime_error("Cantidad de etiquetas (" + std::to_string(dataset.labels.size()) +
+        throw std::runtime_error("❌ Cantidad de etiquetas (" + std::to_string(dataset.labels.size()) +
                                  ") no coincide con cantidad de muestras (" + std::to_string(dataset.num_samples) + ")");
     }
 
@@ -72,7 +75,7 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 
 void normalize_data(std::vector<float> &images)
 {
-    // Asumimos que los embeddings ya están normalizados.
+    // Embeddings de ViT ya están normalizados, no hacer nada.
 }
 
 void free_mnist(MNISTData &dataset)
