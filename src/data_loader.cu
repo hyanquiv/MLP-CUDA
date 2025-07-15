@@ -11,7 +11,7 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 {
     MNISTData dataset;
 
-    // Leer archivo de características
+    // Abrir embeddings
     std::ifstream feature_file(features_csv);
     if (!feature_file.is_open())
     {
@@ -21,10 +21,13 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
     std::string line;
     int embedding_dim = -1;
 
+    // 🚫 Omitir encabezado
+    std::getline(feature_file, line);
+
     while (std::getline(feature_file, line))
     {
         if (line.empty())
-            continue; // ← Ignorar líneas vacías
+            continue;
 
         std::stringstream ss(line);
         std::string value;
@@ -43,24 +46,21 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
     dataset.image_size = embedding_dim;
     dataset.num_samples = dataset.images.size() / embedding_dim;
 
-    // Leer archivo de etiquetas (CSV con encabezado)
+    // Abrir etiquetas
     std::ifstream label_file(labels_csv);
     if (!label_file.is_open())
     {
         throw std::runtime_error("No se pudo abrir el archivo de etiquetas: " + labels_csv);
     }
 
-    std::string label_line;
+    // 🚫 Omitir encabezado "label"
+    std::getline(label_file, line);
 
-    // Saltar encabezado
-    std::getline(label_file, label_line);
-
-    // Leer etiquetas
-    while (std::getline(label_file, label_line))
+    while (std::getline(label_file, line))
     {
-        if (!label_line.empty())
+        if (!line.empty())
         {
-            dataset.labels.push_back(std::stoi(label_line));
+            dataset.labels.push_back(std::stoi(line));
         }
     }
 
@@ -75,7 +75,7 @@ MNISTData load_from_csv(const std::string &features_csv, const std::string &labe
 
 void normalize_data(std::vector<float> &images)
 {
-    // Embeddings de ViT ya están normalizados, no hacer nada.
+    // Embeddings ViT ya están normalizados
 }
 
 void free_mnist(MNISTData &dataset)
