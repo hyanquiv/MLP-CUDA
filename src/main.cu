@@ -32,7 +32,7 @@ int main()
     std::cout << " - Muestras de prueba: " << test_data.num_samples << std::endl;
     std::cout << " - Tamaño de embedding (input size): " << train_data.image_size << std::endl;
 
-    // 2. Normalizar (si quieres escalar los valores del embedding)
+    // 2. Normalizar (opcional)
     std::cout << "\n⚙️ Normalizando datos (opcional)..." << std::endl;
     normalize_data(train_data.images);
     normalize_data(test_data.images);
@@ -55,7 +55,7 @@ int main()
         return 1;
     }
 
-    // 5. Evaluación en todo el test set
+    // 5. Evaluación en test set
     std::cout << "\n🧪 Evaluando en conjunto de prueba..." << std::endl;
 
     const int num_classes = OUTPUT_SIZE;
@@ -76,18 +76,54 @@ int main()
     }
 
     float balanced_accuracy = 0.0f;
-    for (int i = 0; i < num_classes; ++i)
-    {
-        if (true_per_class[i] > 0)
-        {
-            balanced_accuracy += static_cast<float>(correct_per_class[i]) / true_per_class[i];
-        }
-    }
-    balanced_accuracy /= num_classes;
+    float macro_precision = 0.0f;
+    float macro_recall = 0.0f;
+    float macro_f1 = 0.0f;
 
     std::cout << std::fixed << std::setprecision(4);
-    std::cout << "\n✅ Accuracy balanceada: " << balanced_accuracy * 100 << "%" << std::endl;
+    std::cout << "\n📈 Métricas por clase:" << std::endl;
+    std::cout << "Clase | Precision | Recall  | F1-Score" << std::endl;
+    std::cout << "--------------------------------------" << std::endl;
 
+    for (int i = 0; i < num_classes; ++i)
+    {
+        int tp = confusion_matrix[i][i];
+        int fn = true_per_class[i] - tp;
+
+        int fp = 0;
+        for (int j = 0; j < num_classes; ++j)
+        {
+            if (j != i)
+                fp += confusion_matrix[j][i];
+        }
+
+        float precision = (tp + fp) > 0 ? static_cast<float>(tp) / (tp + fp) : 0.0f;
+        float recall = (tp + fn) > 0 ? static_cast<float>(tp) / (tp + fn) : 0.0f;
+        float f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0.0f;
+
+        balanced_accuracy += recall;
+        macro_precision += precision;
+        macro_recall += recall;
+        macro_f1 += f1;
+
+        std::cout << "  " << std::setw(2) << i << "   |   "
+                  << std::setw(7) << precision * 100 << " | "
+                  << std::setw(7) << recall * 100 << " | "
+                  << std::setw(7) << f1 * 100 << std::endl;
+    }
+
+    balanced_accuracy /= num_classes;
+    macro_precision /= num_classes;
+    macro_recall /= num_classes;
+    macro_f1 /= num_classes;
+
+    std::cout << "\n📊 Métricas globales promedio (macro):" << std::endl;
+    std::cout << " - Accuracy balanceada: " << balanced_accuracy * 100 << "%" << std::endl;
+    std::cout << " - Precisión (macro):   " << macro_precision * 100 << "%" << std::endl;
+    std::cout << " - Recall (macro):      " << macro_recall * 100 << "%" << std::endl;
+    std::cout << " - F1-score (macro):    " << macro_f1 * 100 << "%" << std::endl;
+
+    // Matriz de confusión
     std::cout << "\n📊 Matriz de confusión:\n   ";
     for (int i = 0; i < num_classes; ++i)
         std::cout << std::setw(4) << i;
@@ -103,7 +139,7 @@ int main()
         std::cout << "\n";
     }
 
-    // 6. Ejemplo de predicción aleatoria
+    // Ejemplo de predicción aleatoria
     int sample_idx = std::rand() % test_data.num_samples;
     const float *sample_image = test_data.images.data() + sample_idx * test_data.image_size;
     int true_label = test_data.labels[sample_idx];
@@ -115,7 +151,7 @@ int main()
     std::cout << " - Predicción del modelo: " << predicted_label << std::endl;
     std::cout << " - Resultado: " << (true_label == predicted_label ? "CORRECTO" : "INCORRECTO") << std::endl;
 
-    // 7. Liberar recursos
+    // Liberar memoria
     free_mnist(train_data);
     free_mnist(test_data);
 
