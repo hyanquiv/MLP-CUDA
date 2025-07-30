@@ -1,5 +1,5 @@
 #include "data_loader.h"
-#include "embedding_cuda.h"
+#include "embedding.h"
 #include "transformer.h"
 #include "mlp_cuda.h"
 #include "constants.h"
