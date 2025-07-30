@@ -35,8 +35,7 @@ public:
 
     void save_weights(const std::string &filename) const;
     void load_weights(const std::string &filename);
-    float* get_input_gradient() const;  // ⬅️ Acceso externo a d_input
-
+    float *get_input_gradient() const; // ⬅️ Acceso externo a d_input
 
 private:
     Impl *impl;
