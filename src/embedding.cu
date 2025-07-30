@@ -4,9 +4,12 @@
 #include <fstream>
 #include <random>
 
-Embedding::Embedding(int input_dim, int output_dim)
-    : input_dim(input_dim), output_dim(output_dim)
+Embedding::Embedding(int img_height, int img_width, int patch_size, int embed_dim)
+    : output_dim(embed_dim)
 {
+    // Cada patch tiene tamaño patch_size x patch_size
+    input_dim = patch_size * patch_size;
+
     // Alocar memoria para pesos y gradientes
     CUDA_CHECK(cudaMalloc(&W_embed, input_dim * output_dim * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&dW_embed, input_dim * output_dim * sizeof(float)));
@@ -56,7 +59,7 @@ void Embedding::forward(const float *input, float *output, int B, int N)
 
 void Embedding::backward(const float *input, const float *d_output, float *d_input, int B, int N)
 {
-    // d_output: [B, N, output_dim], d_input: [B, N, input_dim]
+    // input: [B, N, input_dim], d_output: [B, N, output_dim], d_input: [B, N, input_dim]
     float alpha = 1.0f, beta = 0.0f;
     cublasHandle_t handle;
     cublasCreate(&handle);
