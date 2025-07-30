@@ -150,6 +150,7 @@ MLP::MLP(int input_size, int hidden_size, int output_size)
         CHECK_CUDA(cudaMemset(impl->d_weights[i], 0, weight_size));
         CHECK_CUDA(cudaMemset(impl->d_biases[i], 0, out_size * sizeof(float)));
     }
+    impl->d_input = static_cast<float *>(cuda_alloc(layer_sizes[0] * sizeof(float)));
 }
 
 MLP::MLP(const std::vector<int> &layer_sizes)
@@ -220,6 +221,7 @@ MLP::MLP(const std::vector<int> &layer_sizes)
         CHECK_CUDA(cudaMemset(impl->d_weights[i], 0, weight_size));
         CHECK_CUDA(cudaMemset(impl->d_biases[i], 0, out_size * sizeof(float)));
     }
+    impl->d_input = static_cast<float *>(cuda_alloc(layer_sizes[0] * sizeof(float)));
 }
 
 MLP::~MLP()
@@ -245,6 +247,8 @@ MLP::~MLP()
         if (impl->deltas[i])
             cuda_free(impl->deltas[i]);
     }
+    if (impl->d_input)
+        cuda_free(impl->d_input);
 
     delete impl;
 }
@@ -389,6 +393,25 @@ void MLP::backward(const float *input, const int *target, float learning_rate)
         cudaDeviceSynchronize();
     }
 
+    if (impl->num_layers >= 2)
+    {
+        int in_size = impl->layer_sizes[0];
+        int hidden_size = impl->layer_sizes[1];
+
+        // Calcular gradiente con respecto a la entrada: d_input = W1^T * delta1
+        float alpha = 1.0f, beta = 0.0f;
+        cublasHandle_t handle;
+        cublasCreate(&handle);
+        cublasSgemv(handle, CUBLAS_OP_T,
+                    hidden_size, in_size,
+                    &alpha,
+                    impl->weights[0], hidden_size,
+                    impl->deltas[0], 1,
+                    &beta,
+                    impl->d_input, 1);
+        cublasDestroy(handle);
+    }
+
     // Liberar recursos
     cuda_free(d_output);
     delete[] h_output;
@@ -430,4 +453,31 @@ int MLP::predict(const float *input)
     }
     delete[] output;
     return max_idx;
+}
+
+void MLP::save_weights(const std::string &filename) const
+{
+    std::ofstream out(filename, std::ios::binary);
+    for (int l = 0; l < num_layers; ++l)
+    {
+        out.write(reinterpret_cast<const char *>(weights[l]), layer_sizes[l + 1] * layer_sizes[l] * sizeof(float));
+        out.write(reinterpret_cast<const char *>(biases[l]), layer_sizes[l + 1] * sizeof(float));
+    }
+    out.close();
+}
+
+void MLP::load_weights(const std::string &filename)
+{
+    std::ifstream in(filename, std::ios::binary);
+    for (int l = 0; l < num_layers; ++l)
+    {
+        in.read(reinterpret_cast<char *>(weights[l]), layer_sizes[l + 1] * layer_sizes[l] * sizeof(float));
+        in.read(reinterpret_cast<char *>(biases[l]), layer_sizes[l + 1] * sizeof(float));
+    }
+    in.close();
+}
+
+float *MLP::get_input_gradient() const
+{
+    return impl->d_input;
 }

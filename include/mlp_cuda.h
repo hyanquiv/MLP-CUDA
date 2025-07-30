@@ -30,10 +30,17 @@ public:
         std::vector<float *> d_weights;
         std::vector<float *> d_biases;
         std::vector<float *> deltas;
+        float *d_input; // gradiente respecto a la entrada
     };
+
+    void save_weights(const std::string &filename) const;
+    void load_weights(const std::string &filename);
+    float* get_input_gradient() const;  // ⬅️ Acceso externo a d_input
+
 
 private:
     Impl *impl;
+    
 };
 
 #endif
