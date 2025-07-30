@@ -1,8 +1,17 @@
 CC = nvcc
-CFLAGS = -std=c++11 -O3 -arch=sm_75  # CAMBIA sm_75 por tu arquitectura
+CFLAGS = -std=c++11 -O3 -arch=sm_75  # CAMBIA sm_75 por la arquitectura de tu GPU
 INCLUDES = -Iinclude
 LIBS = -lcublas -lcurand
-SOURCES = src/main.cu src/data_loader.cu src/mlp_cuda.cu src/activation.cu src/cuda_utils.cu src/train.cu
+
+SOURCES = src/main.cu \
+          src/data_loader.cu \
+          src/mlp_cuda.cu \
+          src/embedding.cu \
+          src/transformer.cu \
+          src/activation.cu \
+          src/cuda_utils.cu \
+          src/train.cu
+
 OBJECTS = $(SOURCES:.cu=.o)
 EXECUTABLE = build/mnist_mlp
 
